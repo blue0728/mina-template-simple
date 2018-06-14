@@ -4,49 +4,50 @@
  * example  /pages/aa/bb/cc/dd/文件名
  * xx.js xx.json xx.wxml xx.wxss
  */
+const inquirer = require('inquirer')
+const logger = require('./logger')
+const path = require('path');
+const fs = require('fs');
+const sep = path.sep; //系统目录分隔符
+const ext = ['js', 'json', 'wxml', 'wxss'];
 
-var readline = require('readline');
-var notice = require('./notice')
-var path = require('path');
-var fs = require('fs');
-var sep = path.sep; //系统目录分隔符
-var ext = ['js', 'json', 'wxml', 'wxss'];
-var rl = readline.createInterface(process.stdin, process.stdout);
-rl.setPrompt('输入路径(例：/pages/home/home/文件名)，输入Q退出>');
-rl.prompt();
-
-rl.on('line', (line) => {
-    if (line.trim().toUpperCase() === 'Q') {
-        process.exit(0);
-
-    } else {
-        create(line.trim(), function() {
-            notice.success('success')
-            process.exit(0);
+let prompts = inquirer.prompt([{
+    name: 'path',
+    message: '请输入路径(pages/aa/)'
+}, {
+    name: 'name',
+    message: '请输入文件名(aa)'
+}]).then((answers) => {
+    if (answers.path != '' && answers.name != '') {
+        create(answers, function() {
+            logger.success('success')
         })
     }
-});
+})
 
 //创建
-function create(dirPath, _callback) {
+function create(answers, _callback) {
+    var dirPath = answers.path;
+    var fileName = answers.name;
     if (typeof dirPath === 'string') {
         var spath = dirPath;
         if (spath[0] === '/') {
             spath = spath.substring(1); //去除路径前面的 /
         }
+        if (spath[spath.length - 1] === '/') {
+            spath = spath.substring(0, spath.length - 1); //去除路径后面的 /
+        }
         var dirArr = spath.split('/');
         dirArr.unshift('src'); //创建到src 目录下面
-        var fileName = dirArr[dirArr.length - 1]; //取最后一个为文件名称
-        dirArr.pop();
         var dir = sep + dirArr.join(sep);
         fs.exists(dir, function(exists) {
             if (!exists) {
                 mkdir(0, dirArr, function() {
-                    notice.success('---------文件夹【全部创建完成】')
+                    logger.success('文件夹【全部创建完成】')
                     writeFile(dirArr.join(sep), spath, fileName, _callback)
                 })
             } else {
-                notice.error('文件夹【已存在】')
+                logger.error('文件夹【已存在】')
                 _callback && _callback();
             }
         })
@@ -71,14 +72,14 @@ function mkdir(pos, dirArr, _callback) {
         if (!exists) {
             fs.mkdir(currentDir, function(err) {
                 if (err) {
-                    notice.error('创建文件夹出错')
+                    logger.error('创建文件夹出错')
                 } else {
-                    notice.success(currentDir + '文件夹【创建成功】')
+                    logger.success(currentDir + '文件夹【创建成功】')
                     mkdir(pos + 1, dirArr, _callback)
                 }
             })
         } else {
-            notice.error(currentDir + '文件夹【已存在】')
+            logger.error(currentDir + '文件夹【已存在】')
             mkdir(pos + 1, dirArr, _callback)
         }
     })
@@ -91,14 +92,14 @@ function writeFile(dirPath, spath, fileName, _callback) {
     for (var i = 0; i < len; i++) {
         fileArr.push(path.join(dirPath, fileName + '.' + ext[i]));
     }
-    write(0, fileArr, spath, _callback)
+    write(0, fileArr, path.join(spath, fileName), _callback)
 }
 
 //创建文件
 function write(pos, fileArr, spath, _callback) {
     var len = ext.length;
     if (pos >= len) {
-        notice.success('--------文件【全部创建成功】')
+        logger.success('文件【全部创建成功】')
         editAppjson(spath, _callback)
         return;
     }
@@ -125,11 +126,11 @@ function write(pos, fileArr, spath, _callback) {
         flag: 'wx'
     }, function(err) {
         if (err) {
-            notice.error(fileArr[pos] + '【已存在】')
+            logger.error(fileArr[pos] + '【已存在】')
             write(pos + 1, fileArr, spath, _callback)
             return
         }
-        notice.success(fileArr[pos] + '【创建成功】')
+        logger.success(fileArr[pos] + '【创建成功】')
         write(pos + 1, fileArr, spath, _callback)
     })
 }
@@ -139,7 +140,7 @@ function editAppjson(dirPath, _callback) {
     var fileStr = path.join('src', 'app.json')
     fs.readFile(fileStr, 'utf-8', function(err, res) {
         if (err) {
-            notice.error(fileStr + '【读取失败】')
+            logger.error(fileStr + '【读取失败】')
         }
         var json = JSON.parse(res);
         if (json.pages.indexOf(dirPath) == -1) {
@@ -148,9 +149,9 @@ function editAppjson(dirPath, _callback) {
         //然后再把数据写进去
         fs.writeFile(fileStr, JSON.stringify(json), 'utf-8', function(err) {
             if (err) {
-                notice.error(fileStr + '【更新失败】')
+                logger.error(fileStr + '【更新失败】')
             }
-            notice.success(fileStr + '【更新成功】')
+            logger.success(fileStr + '【更新成功】')
             _callback && _callback();
         })
     })

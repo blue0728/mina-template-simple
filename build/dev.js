@@ -1,20 +1,20 @@
-var callfile = require('child_process');
-var config = require('./config');
-var path = require('path');
-var colors = require('colors');
+const callfile = require('child_process')
+const config = require('./config')
+const path = require('path')
+const logger = require('./logger')
 
-var projectPath = path.join(process.cwd(), 'src');
+const projectPath = path.join(process.cwd(), 'src')
 
 callfile.execFile(`${config.path}/Contents/Resources/app.nw/bin/cli`, ['-o', projectPath], (err, stdout, stderr) => {
 
     if (err) {
-        console.log(('打开失败：\n' + err).red)
+        logger.error('打开失败：\n' + err)
         return
     }
     if (stderr) {
-        console.log(('工具内报错\n' + stderr).red)
+        logger.error('工具内报错\n' + stderr)
         return
     }
-    console.log(('工具打开成功 \n' + stdout).green)
+    logger.success('工具打开成功 \n' + stdout)
 
 })
